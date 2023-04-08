@@ -231,6 +231,21 @@ class Board {
 
             return vect;
         }
+
+        bool isADraw(){
+            int count = 0;
+            for(int x = 0; x < this->tiles.size(); x++){
+                if(this->getTileByIndex(x).getPiece().empty() == false){
+                    count += 1;
+                }
+            }
+
+            if(count == 9){
+                return true;
+            }
+
+            return false;
+        }
 };
 
 class AI {
@@ -339,6 +354,12 @@ int main()
 
                     tile.setPiece(piece);
                     board.setTile(tile);
+
+                    if(board.isADraw()){
+                        board.draw();
+                        cout << "Its a tie";
+                        exit(0);
+                    }
 
                     ai.play(&board);
 
