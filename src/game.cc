@@ -2,13 +2,27 @@
 #include <string.h>
 #include <vector>
 #include <random>
-#include <bits/stdc++.h>
 
 using namespace std;
 
 const string EMPTY_PIECE = "*";
 const string PLAYER_PIECE = "O";
 const string AI_PIECE = "X";
+
+const int WINNING_COMBINATIONS[8][3] {
+    {0, 1, 2},
+	{3, 4, 5},
+	{6, 7, 8},
+	{0, 3, 6},
+	{1, 4, 7},
+	{2, 5, 8},
+	{0, 4, 8},
+	{2, 4, 6}
+};
+
+random_device rd;
+mt19937 rng(rd());
+uniform_int_distribution<int> uni(0,2);
 
 class Piece {
     private:
@@ -108,6 +122,10 @@ class Board {
             }
         }
 
+        Tile getTileByIndex(int num){
+            return this->tiles.at(num);
+        }
+
         bool hasTile(int col, int row){
             for(int p = 0; p < this->tiles.size(); p++){
                 if(this->tiles.at(p).getColumn() == col && this->tiles.at(p).getRow() == row){
@@ -153,6 +171,66 @@ class Board {
             }
             cout << "\n\n\n";
         }
+
+        bool hasWon(string owner){
+            for(int y = 0; y < sizeof(WINNING_COMBINATIONS)/sizeof(WINNING_COMBINATIONS[0]); y++){
+                int count = 0;
+                for(int x = 0; x < sizeof(WINNING_COMBINATIONS[y])/sizeof(WINNING_COMBINATIONS[y][0]); x++){
+                    int num = WINNING_COMBINATIONS[y][x];
+                    Tile tile = this->getTileByIndex(num);
+                    
+                    if(tile.getPiece().getOwner() == owner){
+                        count += 1;
+                    }
+                }
+
+                if(count == 3){
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        vector<int> getOpenTile(string owner){
+            vector<int> vect;
+            int column = -1;
+            int row = -1;
+
+            for(int y = 0; y < sizeof(WINNING_COMBINATIONS)/sizeof(WINNING_COMBINATIONS[0]); y++){
+                int count = 0;
+                for(int x = 0; x < sizeof(WINNING_COMBINATIONS[y])/sizeof(WINNING_COMBINATIONS[y][0]); x++){
+                    int num = WINNING_COMBINATIONS[y][x];
+                    Tile tile = this->getTileByIndex(num);
+                    
+                    if(tile.getPiece().getOwner() == owner){
+                        count += 1;
+                    }
+                }
+
+                if(count == 2){
+                    for(int x = 0; x < sizeof(WINNING_COMBINATIONS[y])/sizeof(WINNING_COMBINATIONS[y][0]); x++){
+                        int num = WINNING_COMBINATIONS[y][x];
+                        Tile tile = this->getTileByIndex(num);
+                        
+                        if(tile.getPiece().empty() == true){
+
+                            column = tile.getColumn();
+                            row = tile.getRow();
+                            vect.push_back(column);
+                            vect.push_back(row);
+
+                            return vect;
+                        }
+                    }
+                }
+            }
+
+            vect.push_back(column);
+            vect.push_back(row);
+
+            return vect;
+        }
 };
 
 class AI {
@@ -164,34 +242,58 @@ class AI {
         };
     
         void play(Board *board){
-            random_device rd;
-            mt19937 rng(rd());
-            uniform_int_distribution<int> uni(0,2);
-
             switch(this->diff){
-                case 1:
-                    bool done = false;
-                    while(!done){
-                        int column = uni(rng);
-                        int row = uni(rng);
+                case 1: {
+                    this->chooseRandomSpot(board);
+                }break;
+                case 2: {
+                    vector<string> owners;
+                    owners.reserve(2);
 
-                        if(board->hasTile(column,row)){
-                            
-                            Piece piece(AI_PIECE,"AI",false);
-                            Tile tile = board->getTile(column,row);
+                    owners.push_back("player");
+                    owners.push_back("AI");
 
-                            if(tile.getPiece().empty()){
+                    for(int i = 0; i < owners.size(); i++){
+                        string owner = owners.at(i);
+                        const vector<int> check = board->getOpenTile(owner);
+                        int column = check.at(0);
+                        int row = check.at(1);
+
+                        if(column >= 0 && row >= 0){
+                            if(board->hasTile(column,row)){
+                                Piece piece(AI_PIECE,"AI",false);
+                                Tile tile = board->getTile(column,row);
                                 tile.setPiece(piece);
                                 board->setTile(tile);
-                                done = true;
+                                return;
                             }
-
                         }
                     }
-                    break;
-                
+                    chooseRandomSpot(board);
+                }break;
             }
+            
+        }
 
+        void chooseRandomSpot(Board *board){
+            bool done = false;
+                while(!done){
+                    int column = uni(rng);
+                    int row = uni(rng);
+
+                    if(board->hasTile(column,row)){
+                        
+                        Piece piece(AI_PIECE,"AI",false);
+                        Tile tile = board->getTile(column,row);
+
+                        if(tile.getPiece().empty() == true){
+                            tile.setPiece(piece);
+                            board->setTile(tile);
+                            done = true;
+                        }
+
+                    }
+                }
         }
 };
 
@@ -202,7 +304,7 @@ void clrscr(){
 int main()
 {
     Board board;
-    AI ai(1);
+    AI ai(2);
 
     bool done = false;
 
@@ -214,9 +316,9 @@ int main()
         board.draw();
 
 
-        bool done = false;
+        bool check = false;
 
-        while(!done){
+        while(!check){
             cout << "Enter the column [1-3]: ";
             cin >> column;
             
@@ -240,7 +342,17 @@ int main()
 
                     ai.play(&board);
 
-                    done = true;
+                    if(board.hasWon("player")){
+                        board.draw();
+                        cout << "Player has won!";
+                        exit(0);
+                    } else if(board.hasWon("AI")){
+                        board.draw();
+                        cout << "AI has won!";
+                        exit(0);
+                    }
+
+                    check = true;
                 } else {
                     cout << "Place you chose is not empty\n";
                 }
