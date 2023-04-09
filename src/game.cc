@@ -22,7 +22,6 @@ const int WINNING_COMBINATIONS[8][3] {
 
 random_device rd;
 mt19937 rng(rd());
-uniform_int_distribution<int> uni(0,2);
 
 class Piece {
     private:
@@ -253,21 +252,20 @@ class AI {
         int diff;
     public:
         AI(int difficulty){
-            this->diff = difficulty; // Novice, Intermediate, Expert, Experienced
+            this->diff = difficulty; // Novice, Intermediate, Experienced
         };
     
         void play(Board *board){
+            vector<string> owners;
+            owners.reserve(2);
+
+            owners.push_back("player");
+            owners.push_back("AI");
             switch(this->diff){
                 case 1: {
                     this->chooseRandomSpot(board);
                 }break;
                 case 2: {
-                    vector<string> owners;
-                    owners.reserve(2);
-
-                    owners.push_back("player");
-                    owners.push_back("AI");
-
                     for(int i = 0; i < owners.size(); i++){
                         string owner = owners.at(i);
                         const vector<int> check = board->getOpenTile(owner);
@@ -286,29 +284,76 @@ class AI {
                     }
                     chooseRandomSpot(board);
                 }break;
+
+                case 3: {
+                    Tile middle = board->getTileByIndex(4);
+
+                    if(middle.getPiece().empty()){
+                        Piece piece(AI_PIECE,"AI",false);
+                        middle.setPiece(piece);
+                        board->setTile(middle);
+                        return;
+                    }
+
+                    for(int i = 0; i < owners.size(); i++){
+                        string owner = owners.at(i);
+                        const vector<int> check = board->getOpenTile(owner);
+                        int column = check.at(0);
+                        int row = check.at(1);
+
+                        if(column >= 0 && row >= 0){
+                            if(board->hasTile(column,row)){
+                                Piece piece(AI_PIECE,"AI",false);
+                                Tile tile = board->getTile(column,row);
+                                tile.setPiece(piece);
+                                board->setTile(tile);
+                                return;
+                            }
+                        }
+                    }
+
+                    const int edges[4] = {0,2,6,8};
+                    bool done = false;
+
+                    while(!done){
+                        uniform_int_distribution<int> uni(0,4);
+
+                        Tile tile = board->getTileByIndex(edges[uni(rng)]);
+
+                        int column = tile.getColumn();
+                        int row = tile.getRow();
+
+                        if(tile.getPiece().empty()){
+                            Piece piece(AI_PIECE,"AI",false);
+                            tile.setPiece(piece);
+                            done = true;
+                        }
+                    }
+                } break;
             }
             
         }
 
         void chooseRandomSpot(Board *board){
             bool done = false;
-                while(!done){
-                    int column = uni(rng);
-                    int row = uni(rng);
+            while(!done){
+                uniform_int_distribution<int> uni(0,2);
+                int column = uni(rng);
+                int row = uni(rng);
 
-                    if(board->hasTile(column,row)){
-                        
-                        Piece piece(AI_PIECE,"AI",false);
-                        Tile tile = board->getTile(column,row);
+                if(board->hasTile(column,row)){
+                    
+                    Piece piece(AI_PIECE,"AI",false);
+                    Tile tile = board->getTile(column,row);
 
-                        if(tile.getPiece().empty() == true){
-                            tile.setPiece(piece);
-                            board->setTile(tile);
-                            done = true;
-                        }
-
+                    if(tile.getPiece().empty() == true){
+                        tile.setPiece(piece);
+                        board->setTile(tile);
+                        done = true;
                     }
+
                 }
+            }
         }
 };
 
@@ -319,7 +364,20 @@ void clrscr(){
 int main()
 {
     Board board;
-    AI ai(2);
+    int difficulty;
+
+    while(true){
+        cout << "Choose a difficulty [1-3]: ";
+        cin >> difficulty;
+        cout << "\n";
+
+        if(difficulty >= 1 && difficulty <= 3){
+            break;
+        } else {
+            cout << "Please choose a valid difficulty\n";
+        }
+    }
+    AI ai(difficulty);
 
     bool done = false;
 
